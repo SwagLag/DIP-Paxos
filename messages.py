@@ -1,11 +1,13 @@
 from computer import Computer
+from typing import Any
 
 class Message():
     """A message to be sent."""
-    def __init__(self,source: Computer,destination: Computer,typestr,content):
+    def __init__(self,source: Computer,destination: Computer,typestr: str,value: Any):
         self.src = source  # Computer die het bericht verstuurd heeft.
         self.dst = destination  # Computer waarnaar het bericht verstuurd moet worden.
         if typestr.upper() in ["PROPOSE","PREPARE","PROMISE","ACCEPT","ACCEPTED","REJECTED"]:
             self.type = typestr.upper()
-        self.cnt = content  # Value that the message carries.
-
+        else:
+            raise NotImplementedError
+        self.value = value  # Value that the message carries.
