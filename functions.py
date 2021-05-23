@@ -4,6 +4,7 @@ from events import Event
 
 ### CHECKLIST ###
 # (Tijdelijk, wordt na ontwikkeling weggehaald)
+# [x] parser(instructionfile,delimiter)
 # [] queue_message(N,m)
 # [] extract_message(N)
 #
@@ -14,7 +15,7 @@ from events import Event
 
 ### HELPER ###
 
-def simparser(instructionsfile:str):
+def simparser(instructionsfile:str,delimiter:str = " "):
     """Parses an instruction file for use in the simulation.
     Said file should consist of the following;
     First rule: n_p, n_a, tmax
@@ -36,8 +37,8 @@ def simparser(instructionsfile:str):
     events = instructions[1:]
     eventdict = {}
     for event in events:  # Gets a single rule from the remaining inputs.
-        readstatus = 0  # FSM-ish method of reading instructions and classifying them.
-        eventblocks = event.split(' ')
+        readstatus = 0  # FSM-ish method of reading texts and classifying them.
+        eventblocks = event.split(delimiter)
         try:
             tick = int(eventblocks[0])
         except:
