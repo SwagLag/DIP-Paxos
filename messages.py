@@ -1,9 +1,8 @@
-from computer import Computer
 from typing import Any
 
 class Message():
     """A message to be sent."""
-    def __init__(self,source: Computer,destination: Computer,typestr: str,value: Any):
+    def __init__(self,source,destination,typestr: str,value: Any):
         self.src = source  # Computer die het bericht verstuurd heeft.
         self.dst = destination  # Computer waarnaar het bericht verstuurd moet worden.
         if typestr.upper() in ["PROPOSE","PREPARE","PROMISE","ACCEPT","ACCEPTED","REJECTED"]:

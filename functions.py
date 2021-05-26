@@ -1,6 +1,6 @@
 """Contains all the functions for manipulating events which will be used in the simulation
 function in main.py. This has been decided so that we can limit one operation per tick."""
-from events import Event
+from typing import Any, Union
 
 ### CHECKLIST ###
 # (Tijdelijk, wordt na ontwikkeling weggehaald)
@@ -13,7 +13,7 @@ from events import Event
 #
 #
 
-### HELPER ###
+### PARSER ###
 
 def simparser(instructionsfile:str,delimiter:str = " "):
     """Parses an instruction file for use in the simulation.
@@ -147,6 +147,39 @@ def simparser(instructionsfile:str,delimiter:str = " "):
 
     return n_p, n_a, tmax, eventlist
 
+def computerparser(compidstr:str,proposers:list,acceptors:list):
+    """Gets a formatted id (type+id), and fetches the proper computer."""
+    ctype,cid = compidstr[0], int(compidstr[1:])
+    # Assume that the lists are ordered by ID.
+    if ctype.upper() == "P":
+        return proposers[cid]
+    elif ctype.upper() == "A":
+        return acceptors[cid]
+
+def priorvalueparser(propid:Union[int,None],value: Union[Any,None]) -> str:
+    if propid is None:
+        return "(Prior: None)"
+    else:
+        if value is None:
+            return "(Prior: None)"
+        else:
+            return "(Prior: n={}, v={})".format(propid,value)
+
+
+### HELPER ###
+
+def getclassname(obj:object):
+    return obj.__class__.__name__
+
+def idtostrid(computerobj):
+    cname = computerobj.__class__.__name__
+    if cname == "Proposer":
+        return "P{}".format(computerobj.id)
+    elif cname == "Acceptor":
+        return "A{}".format(computerobj.id)
+    elif cname == "Learner":
+        return "L{}".format(computerobj.id)
+
 def determinenumdepth(num:int or float):
     """Recursively determines the significance of a given number before
     the dot."""
@@ -170,18 +203,8 @@ def paddedstrnum(num:int, highnum:int) -> str:
 
 ### EVENTS ###
 
-def extract_event(eventqueue, simtick):
+def get_event(eventqueue, simtick):
     for e in eventqueue:  # Itereert over Event objecten.
-        if e.tick == simtick:
+        if e[0] == simtick:
             return e
     return None  # Geen event gevonden voor de huidige tick.
-
-### NETWORK ###
-def queue_message(network, message):
-    network.messagequeue.append(message)
-
-def extract_message(network):
-    for m in network.messagequeue:
-        if m.src.failed == False and m.dst.failed == False:
-            return m
-    return None
