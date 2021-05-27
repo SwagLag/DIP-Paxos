@@ -34,11 +34,11 @@ def simulation(n_P: int, n_A: int, maxticks: int, E: list):
             for failc in event[1]:  # Computers fail
                 objfailc = computerparser(failc,P,A)
                 objfailc.failed = True
-                print("** {} kapot **".format(failc))
+                print("{}: ** {} kapot **".format(paddedstrnum(tick,paddingnum),failc))
             for fixc in event[2]:  # Computers get repaired
                 objfixc = computerparser(fixc,P,A)
                 objfixc.failed = False
-                print("** {} gerepareerd **".format(fixc))
+                print("{}: ** {} gerepareerd **".format(paddedstrnum(tick,paddingnum),fixc))
             if event[3] is not None and event[4] is not None:  # External agent wants to propose new value.
                 # print(event[3])
                 targetc = N.find_proposer(event[3] - 1)
@@ -48,10 +48,25 @@ def simulation(n_P: int, n_A: int, maxticks: int, E: list):
         else:
             m = N.extract_message()
             if m is not None:
-                print("{}: {} -> {}  {} {}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,priorvalueparser(None,None)))
+                if m.type == "PROMISE":  # m.dst is P, m.src is A
+                    print("{}: {} -> {}  {} n={} {}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.dst.proposalid,priorvalueparser(m.src.prevpropid,m.src.value)))
+                elif m.type == "ACCEPTED":  # m.dst is P, m.src is A
+                    print("{}: {} -> {}  {} n={} v={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.dst.proposalid, m.value))
+                elif m.type == "ACCEPT":  # m.dst is A, m.src is P
+                    print("{}: {} -> {}  {} n={} v={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.src.proposalid, m.value))
+                elif m.type == "PREPARE":  # m.dst is A, m.src is P
+                    print("{}: {} -> {}  {} n={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.src.proposalid))
+                elif m.type == "REJECTED":  # m.dst is P, m.src is A
+                    print("{}: {} -> {}  {} n={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.dst.proposalid))
                 m.dst.process_message(m)
-            else:
+            else:  # Er wordt niks gedaan op het moment.
                 print("{}:".format(paddedstrnum(tick, paddingnum)))
+
+    # Simulatie klaar, consensus evalueren per proposer.
+    print("\n")
+    for proposer in P:
+        if proposer.consensus is True:
+            print("{} heeft wel consensus (voorgesteld: {}, geaccepteerd: {})".format(idtostrid(proposer),proposer.proposed,proposer.value))
 
 if __name__ == "__main__":
     parser = simparser("test-1")

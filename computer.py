@@ -51,6 +51,8 @@ class Proposer(BaseComputer):
         self.proposed = None  # Value that was initially proposed externally.
         self.value = None  # Value that the proposer is trying to get consensus on.
 
+        self.consensus = False  # Het uiteindelijke doel; proberen consensus te krijgen!
+
     def increment_proposal(self):
         # Step 1: Get the amount of previous proposals from the network.
         self.previousproposals = self.network.proposals
@@ -70,21 +72,56 @@ class Proposer(BaseComputer):
                     if self.promised / self.processed >= 0.5:  # Consensus reached.
                         for i in range(self.acceptors):
                             self.network.queue_message(Message(self, self.network.find_acceptor(i), "ACCEPT", self.value))
+                        self.state = 2
                     else:  # Failure, try again with a higher proposerid.
-                        self.state = 0
+                        self.state = 1
                         self.increment_proposal()
                         for i in range(self.acceptors):
                             self.network.queue_message(Message(self, self.network.find_acceptor(i), "PREPARE", self.value))
                     # Reset values
                     self.processed, self.promised = 0,0
+
+            elif m.type == "REJECTED":
+                if self.processed == self.acceptors:
+                    if self.promised / self.processed >= 0.5:  # Consensus reached.
+                        self.state = 2
+                    else:
+                        self.state = 1
+                        self.increment_proposal()
+                        for i in range(self.acceptors):
+                            self.network.queue_message(Message(self, self.network.find_acceptor(i), "PREPARE", self.value))
+                    # Reset values
+                    self.processed, self.promised = 0, 0
+
         elif self.state == 2:  # Acceptance stage
             if m.type == "ACCEPTED":
                 self.accepted += 1
                 if m.value is not None:
                     self.value = m.value
+                if self.processed == self.acceptors:
+                    if self.accepted / self.processed >= 0.5:  # Consensus reached.
+                        self.state = 3
+                        self.consensus = True
+                    else:
+                        self.state = 1
+                        self.increment_proposal()
+                        for i in range(self.acceptors):
+                            self.network.queue_message(Message(self, self.network.find_acceptor(i), "PREPARE", self.value))
+                    self.processed, self.accepted = 0, 0
+            elif m.type == "REJECTED":
+                if self.processed == self.acceptors:
+                    if self.accepted / self.processed >= 0.5:  # Consensus reached.
+                        self.state = 3
+                        self.consensus = True
+                    else:
+                        self.state = 1
+                        self.increment_proposal()
+                        for i in range(self.acceptors):
+                            self.network.queue_message(Message(self, self.network.find_acceptor(i), "PREPARE", self.value))
+                    self.processed, self.accepted = 0, 0
 
     def handle_external_message(self,m):
-        self.state = 0
+        self.state = 1
         self.increment_proposal()
         # Bericht zou altijd een PROPOSAL bericht moeten zijn.
         # Source is ook altijd None.
@@ -100,20 +137,28 @@ class Acceptor(BaseComputer):
     def __init__(self,id):
         super().__init__(id)
         self.network = None  # Define this in the simulation code later on, or else it will throw errors!!
-        self.propid = 0  # Id of the previous proposer, is copied from a proposer in a message when necessary.
+
+        self.propid = None  # Id of the previous proposer, is copied from a proposer in a message when necessary.
+        self.prevpropid = None
+
         self.value = None  # Value from a message.
 
     def process_message(self,m):
         if m.type == "PREPARE":  # Neem alleen het ID over als het hoger is dan het huidige ID.
-            if self.propid < m.src.proposalid:
-                # Dit is een soort lock; ID's die eronder zitten mogen hier niks
+            if self.propid is not None:
+                if self.propid < m.src.proposalid:
+                    # Dit is een soort lock; ID's die eronder zitten mogen hier niks
+                    self.prevpropid = self.propid  # Sla vorige id op om te printen in de simulatie.
+                    self.propid = m.src.proposalid
+                    self.network.queue_message(Message(self,m.src,"PROMISE",self.value))
+                else:  # Failure, proposalid of message lower than registered proposalid.
+                    self.network.queue_message(Message(self,m.src,"REJECTED",None))
+            else:
                 self.propid = m.src.proposalid
-                self.network.queue_message(Message(self,m.src,"PROMISE",self.value))
-            else:  # Failure, proposalid of message lower than registered proposalid.
-                self.network.queue_message(Message(self,m.src,"REJECTED",None))
+                self.network.queue_message(Message(self, m.src, "PROMISE", self.value))
 
         elif m.type == "ACCEPT":
-            if self.propid < m.src.proposalid:
+            if self.propid <= m.src.proposalid:
                 self.value = m.value
                 self.network.queue_message(Message(self,m.src,"ACCEPTED",self.value))
             else:

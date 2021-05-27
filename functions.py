@@ -152,9 +152,9 @@ def computerparser(compidstr:str,proposers:list,acceptors:list):
     ctype,cid = compidstr[0], int(compidstr[1:])
     # Assume that the lists are ordered by ID.
     if ctype.upper() == "P":
-        return proposers[cid]
+        return proposers[cid-1]
     elif ctype.upper() == "A":
-        return acceptors[cid]
+        return acceptors[cid-1]
 
 def priorvalueparser(propid:Union[int,None],value: Union[Any,None]) -> str:
     if propid is None:
@@ -204,7 +204,9 @@ def paddedstrnum(num:int, highnum:int) -> str:
 ### EVENTS ###
 
 def get_event(eventqueue, simtick):
-    for e in eventqueue:  # Itereert over Event objecten.
-        if e[0] == simtick:
+    for i in range(len(eventqueue)):  # Itereert over Event objecten.
+        if eventqueue[i][0] == simtick:
+            e = eventqueue[i]
+            eventqueue.remove(e)
             return e
     return None  # Geen event gevonden voor de huidige tick.
