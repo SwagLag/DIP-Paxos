@@ -23,17 +23,18 @@ def simparser(instructionsfile:str,delimiter:str = " "):
     with open(instructionsfile) as infile:
         instructions = list(map(str.strip,infile.readlines()))
     line1 = instructions[0].split(' ')
-    if len(line1) == 3:  # Simulation expects 3 parameters.
+    if len(line1) == 4:  # Simulation expects 3 parameters.
         try:
-            n_p, n_a, tmax = int(line1[0]), int(line1[1]), int(line1[2])
+            n_p, n_a, n_l, tmax = int(line1[0]), int(line1[1]), int(line1[2]), int(line1[3])
         except:
             raise Exception("Failure converting first rule to numbers. Check if it contains only numbers (0-9),\n"
-                            "and no additional whitespaces. Example: 'n_P n_A tmax'")
+                            "and no additional whitespaces. Example: 'n_P n_A n_L tmax'")
     else:
         raise Exception("First rule in instruction file does not follow conventions;\n"
                         "First number should contain amount of proposers.\n"
                         "Second number should contain amount of acceptors.\n"
-                        "Third number declares tmax for simulation.\n")
+                        "Third number should contain amount of learners.\n"
+                        "Fourth number declares tmax for simulation.\n")
     events = instructions[1:]
     eventdict = {}
     for event in events:  # Gets a single rule from the remaining inputs.
@@ -65,11 +66,16 @@ def simparser(instructionsfile:str,delimiter:str = " "):
 
             elif readstatus == 2:  # Awaiting proposervalue
                 try:
-                    proposervalue = int(text)
-                    e[3] = proposerid
-                    e[4] = proposervalue
-                    eventdict[tick] = e  # Commit.
-                    readstatus = 11  # Done, revert to end state.
+                    e = eventdict[tick]  # Fetch.
+                    if e[3] is not None and e[4] is not None:  # Event already has a proposer/value pair, update value.
+                        proposervalue = text
+                        e[4] += proposervalue  # String value gets appended
+                        eventdict[tick] = e  # Commit.
+                    else:  # Assume that the event does not have a new proposer/value pair
+                        proposervalue = text
+                        e[3] = proposerid
+                        e[4] = proposervalue
+                        eventdict[tick] = e  # Commit.
                 except:
                     raise Exception("Error converting event proposervalue. Proposervalue = {}".format(text))
 
@@ -145,7 +151,7 @@ def simparser(instructionsfile:str,delimiter:str = " "):
     for key in eventdict.keys():
         eventlist.append(eventdict[key])
 
-    return n_p, n_a, tmax, eventlist
+    return n_p, n_a, n_l, tmax, eventlist
 
 def computerparser(compidstr:str,proposers:list,acceptors:list):
     """Gets a formatted id (type+id), and fetches the proper computer."""
@@ -183,6 +189,8 @@ def idtostrid(computerobj):
 def determinenumdepth(num:int or float):
     """Recursively determines the significance of a given number before
     the dot."""
+    if num == 0:  # Edge case 1: 0 should give 1.
+        return 1
     if num >= 1:
         return 1 + determinenumdepth(num/10)
     else:

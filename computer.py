@@ -66,7 +66,7 @@ class Proposer(BaseComputer):
         if self.state == 1:  # Prepare stage
             if m.type == "PROMISE":
                 self.promised += 1
-                if m.value is not None:
+                if m.value is not None and m.src.state == 1:
                     self.value = m.value
                 if self.processed == self.acceptors:
                     if self.promised / self.processed >= 0.5:  # Consensus reached.
@@ -95,9 +95,8 @@ class Proposer(BaseComputer):
 
         elif self.state == 2:  # Acceptance stage
             if m.type == "ACCEPTED":
+                m.src.state = 0  # Set the acceptor's state to 0.
                 self.accepted += 1
-                if m.value is not None:
-                    self.value = m.value
                 if self.processed == self.acceptors:
                     if self.accepted / self.processed >= 0.5:  # Consensus reached.
                         self.state = 3
@@ -141,6 +140,12 @@ class Acceptor(BaseComputer):
         self.propid = None  # Id of the previous proposer, is copied from a proposer in a message when necessary.
         self.prevpropid = None
 
+        self.state = 0
+        # STATES:
+        # 0: Initial state. Does not pass over values after receiving a PROMISE for the first time.
+        # 1: Correcting state. Passes over it's stored value after receiving a PROMISE message.
+        # If ACCEPTOR receives a ACCEPT message, it's state is set to 1.
+        # If ACCEPTOR sends a ACCEPTED message, it returns to state 0.
         self.value = None  # Value from a message.
 
     def process_message(self,m):
@@ -160,6 +165,7 @@ class Acceptor(BaseComputer):
         elif m.type == "ACCEPT":
             if self.propid <= m.src.proposalid:
                 self.value = m.value
+                self.state = 1
                 self.network.queue_message(Message(self,m.src,"ACCEPTED",self.value))
             else:
                 self.network.queue_message(Message(self,m.src,"REJECTED",None))

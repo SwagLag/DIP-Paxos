@@ -10,7 +10,7 @@ from network import Network
 def main(simfile:str):
     pass
 
-def simulation(n_P: int, n_A: int, maxticks: int, E: list):
+def simulation(n_P: int, n_A: int, n_L: int, maxticks: int, E: list):
     # Initialise variables.
     # Proposals wordt bijgehouden in het Network object, waar alle proposers dan bij kunnen
     P = [Proposer(x+1,n_A) for x in range(n_P)]
@@ -69,5 +69,5 @@ def simulation(n_P: int, n_A: int, maxticks: int, E: list):
             print("{} heeft wel consensus (voorgesteld: {}, geaccepteerd: {})".format(idtostrid(proposer),proposer.proposed,proposer.value))
 
 if __name__ == "__main__":
-    parser = simparser("test-1")
-    simulation(parser[0],parser[1],parser[2],parser[3])
+    parser = simparser("test-3")
+    simulation(parser[0],parser[1],parser[2],parser[3],parser[4])
