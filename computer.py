@@ -19,6 +19,7 @@
 #         """Processes a given message."""
 #         if self.type ==
 
+import numpy as np
 from messages import Message
 
 class BaseComputer():
@@ -31,9 +32,11 @@ class BaseComputer():
         pass
 
 class Proposer(BaseComputer):
-    def __init__(self,id,n_A):
+    def __init__(self,id,n_A,n_L):
         super().__init__(id)
         self.acceptors = n_A
+        self.learners = n_L
+
         self.network = None  # Define this in the simulation code later on, or else it will throw errors!!
         self.previousproposals = 0  # Amount of proposals that have been done previously.
 
@@ -47,7 +50,7 @@ class Proposer(BaseComputer):
         # 0: Idle
         # 1: Pending Proposal
         # 2: Pending Accept
-        # 3: Success
+        # 3: Success (Consensus bereikt)
         self.proposed = None  # Value that was initially proposed externally.
         self.value = None  # Value that the proposer is trying to get consensus on.
 
@@ -62,7 +65,8 @@ class Proposer(BaseComputer):
         self.network.update_proposalnum(self.proposalid)
 
     def process_message(self,m):
-        self.processed += 1
+        if self.state in [1,2]:  # Alleen als het nodig is tellen we berichten om te kijken of we een consensus bereiken.
+            self.processed += 1
         if self.state == 1:  # Prepare stage
             if m.type == "PROMISE":
                 self.promised += 1
@@ -85,6 +89,8 @@ class Proposer(BaseComputer):
                 if self.processed == self.acceptors:
                     if self.promised / self.processed >= 0.5:  # Consensus reached.
                         self.state = 2
+                        for i in range(self.acceptors):
+                            self.network.queue_message(Message(self, self.network.find_acceptor(i), "ACCEPT", self.value))
                     else:
                         self.state = 1
                         self.increment_proposal()
@@ -101,17 +107,22 @@ class Proposer(BaseComputer):
                     if self.accepted / self.processed >= 0.5:  # Consensus reached.
                         self.state = 3
                         self.consensus = True
+                        for i in range(self.learners):
+                            self.network.queue_message(Message(self, self.network.find_learner(i), "SUCCESS", self.value))
                     else:
                         self.state = 1
                         self.increment_proposal()
                         for i in range(self.acceptors):
                             self.network.queue_message(Message(self, self.network.find_acceptor(i), "PREPARE", self.value))
                     self.processed, self.accepted = 0, 0
+
             elif m.type == "REJECTED":
                 if self.processed == self.acceptors:
                     if self.accepted / self.processed >= 0.5:  # Consensus reached.
                         self.state = 3
                         self.consensus = True
+                        for i in range(self.learners):
+                            self.network.queue_message(Message(self, self.network.find_learner(i), "SUCCESS", self.value))
                     else:
                         self.state = 1
                         self.increment_proposal()
@@ -170,10 +181,26 @@ class Acceptor(BaseComputer):
             else:
                 self.network.queue_message(Message(self,m.src,"REJECTED",None))
 
-
-
 class Learner(BaseComputer):
-    def __init__(self,id,network):
+    def __init__(self,id):
         super().__init__(id)
-        self.network = network
+        self.network = None  # Define this in the simulation code later on, or else it will throw errors!!
+        self.alphabetkey = "abcdefghijklmnopqrstuvwxyz ,"
+        self.nlmatrice = np.full((len(self.alphabetkey),len(self.alphabetkey)),0)
+        self.enmatrice = np.full((len(self.alphabetkey),len(self.alphabetkey)),0)
+        self.total = 0  # Total amount of adjustments done to translation matrices
 
+    def process_message(self,m):
+        if m.type == "SUCCESS":  # Safety check.
+            request,value = m.value.split(":")
+            if len(value) == 1:  # Vanwege irritante python formatting is een input met één letter eigenlijk een input met een spatie erachter.
+                value += " "
+            if request == "en":  # Update english matrix with given pair
+                if value[0] in self.alphabetkey and value[1] in self.alphabetkey:
+                    self.enmatrice[self.alphabetkey.find(value[0])][self.alphabetkey.find(value[1])] += 1
+                    self.total += 1
+            elif request == "nl":  # Update dutch matrix with given pair
+                if value[0] in self.alphabetkey and value[1] in self.alphabetkey:
+                    self.nlmatrice[self.alphabetkey.find(value[0])][self.alphabetkey.find(value[1])] += 1
+                    self.total += 1
+            self.network.queue_message(Message(self,m.src,"PREDICTED",self.total))

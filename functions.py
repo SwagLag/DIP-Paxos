@@ -42,109 +42,130 @@ def simparser(instructionsfile:str,delimiter:str = " "):
         eventblocks = event.split(delimiter)
         try:
             tick = int(eventblocks[0])
+            type = str(eventblocks[1])  # Second input is always the type of event expected.
         except:
-            raise Exception("Error converting event tick info. Tick = {}".format(text))
+            raise Exception("Error converting event tick info. Tick = {}".format(tick))
         if tick not in eventdict.keys():  # New event, create template.
             eventdict[tick] = [tick,[],[],None,None]  # (t, failedcomputers, repairedcomputers, proposerid, proposervalue)
         e = eventdict[tick]  # Edit the event.
-        for text in eventblocks[1:]:  # Evaluates each word in each rule.
-            if readstatus == 0:  # Awaiting event type.
-                if text.upper() == "PROPOSE":  # Expecting proposer id and proposer value.
-                    readstatus = 1
-                elif text.upper() == "FAIL":
-                    readstatus = 3
-                elif text.upper() == "RECOVER":
-                    readstatus = 7
-                elif text.upper() == "END":  # Ignore entire rule.
-                    readstatus = 11
-            elif readstatus == 1:  # Awaiting proposerid.
-                try:
-                    proposerid = int(text)
-                    readstatus = 2
-                except:
-                    raise Exception("Error converting event proposerid. Proposerid = {}".format(text))
-
-            elif readstatus == 2:  # Awaiting proposervalue
-                try:
-                    e = eventdict[tick]  # Fetch.
-                    if e[3] is not None and e[4] is not None:  # Event already has a proposer/value pair, update value.
-                        proposervalue = text
-                        e[4] += proposervalue  # String value gets appended
-                        eventdict[tick] = e  # Commit.
-                    else:  # Assume that the event does not have a new proposer/value pair
-                        proposervalue = text
-                        e[3] = proposerid
-                        e[4] = proposervalue
-                        eventdict[tick] = e  # Commit.
-                except:
-                    raise Exception("Error converting event proposervalue. Proposervalue = {}".format(text))
-
-            elif readstatus == 3:  # Awaiting computer type for fail event
-                try:
-                    comptype = str(text)
-                    if comptype.upper() == "PROPOSER":
-                        readstatus = 4
-                    elif comptype.upper() == "ACCEPTOR":
-                        readstatus = 5
-                    # elif comptype.upper() == "LEARNER":
-                    #   readstatus = 6
-                except:
-                    raise Exception("Error converting fail event computertype. Computertype = {}".format(text))
-
-            elif readstatus == 4:  # Awaiting proposer ID.
-                try:
-                    proposerfailid = str(text)
-                    e[1].append("{}{}".format("P",proposerfailid))
-                    eventdict[tick] = e
-                    readstatus = 11
-                except:
-                    raise Exception("Error converting event proposerfailid. Proposerfailid = {}".format(text))
-
-            elif readstatus == 5:  # Awaiting proposer ID.
-                try:
-                    acceptorfailid = str(text)
-                    e[1].append("{}{}".format("A",acceptorfailid))
-                    eventdict[tick] = e
-                    readstatus = 11
-                except:
-                    raise Exception("Error converting event acceptorfailid. Acceptorfailid = {}".format(text))
-
-            # 6 reserved for learner.
-
-            elif readstatus == 7:
-                try:
-                    comptype = str(text)
-                    if comptype.upper() == "PROPOSER":
-                        readstatus = 8
-                    elif comptype.upper() == "ACCEPTOR":
-                        readstatus = 9
-                    # elif comptype.upper() == "LEARNER":
-                    #   readstatus = 10
-                except:
-                    raise Exception("Error converting recover event computertype. Computertype = {}".format(text))
-
-            elif readstatus == 8:  # Awaiting proposer ID.
-                try:
-                    proposerrepid = str(text)
-                    e[2].append("{}{}".format("P",proposerrepid))
-                    eventdict[tick] = e
-                    readstatus = 11
-                except:
-                    raise Exception("Error converting event proposerrepid. Proposerrepid = {}".format(text))
-
-            elif readstatus == 9:  # Awaiting acceptor ID.
-                try:
-                    acceptorrepid = str(text)
-                    e[2].append("{}{}".format("A",acceptorrepid))
-                    eventdict[tick] = e
-                    readstatus = 11
-                except:
-                    raise Exception("Error converting event acceptorrepid. Acceptorrepid = {}".format(text))
-
-            # 10 reserved for learner.
-
-            elif readstatus == 11:  # Already processed a full event this rule.
-                continue
+        if type.upper() == "PROPOSE":
+            proposer = int(eventblocks[2])
+            value = event[(len(eventblocks[0])+len(eventblocks[1])+len(eventblocks[2])+3):]
+            # value = event[event[:(len(eventblocks[1])+len(eventblocks[2])+)].find(str(eventblocks[2]))+len(str(eventblocks[2]))+1:]  # Gets **everything** after the given proposer id as value.
+            e[3] = proposer
+            e[4] = value
+            eventdict[tick] = e  # Commit.
+        elif type.upper() == "FAIL":
+            comptype = str(eventblocks[2])
+            if comptype == "PROPOSER":
+                e[1].append("P{}".format(str(eventblocks[3])))
+            elif comptype == "ACCEPTOR":
+                e[1].append("A{}".format(str(eventblocks[3])))
+        elif type.upper() == "RECOVER":
+            if comptype == "PROPOSER":
+                e[2].append("P{}".format(str(eventblocks[3])))
+            elif comptype == "ACCEPTOR":
+                e[2].append("A{}".format(str(eventblocks[3])))
+        elif type.upper() == "END":
+            break
+        # for text in eventblocks[1:]:  # Evaluates each word in each rule.
+        #     if readstatus == 0:  # Awaiting event type.
+        #         if text.upper() == "PROPOSE":  # Expecting proposer id and proposer value.
+        #             readstatus = 1
+        #         elif text.upper() == "FAIL":
+        #             readstatus = 3
+        #         elif text.upper() == "RECOVER":
+        #             readstatus = 7
+        #         elif text.upper() == "END":  # Ignore entire rule.
+        #             readstatus = 11
+        #     elif readstatus == 1:  # Awaiting proposerid.
+        #         try:
+        #             proposerid = int(text)
+        #             readstatus = 2
+        #         except:
+        #             raise Exception("Error converting event proposerid. Proposerid = {}".format(text))
+        #
+        #     elif readstatus == 2:  # Awaiting proposervalue
+        #         try:
+        #             e = eventdict[tick]  # Fetch.
+        #             if e[3] is not None and e[4] is not None:  # Event already has a proposer/value pair, update value.
+        #                 proposervalue = text
+        #                 e[4] += proposervalue  # String value gets appended
+        #                 eventdict[tick] = e  # Commit.
+        #             else:  # Assume that the event does not have a new proposer/value pair
+        #                 proposervalue = text
+        #                 e[3] = proposerid
+        #                 e[4] = proposervalue
+        #                 eventdict[tick] = e  # Commit.
+        #         except:
+        #             raise Exception("Error converting event proposervalue. Proposervalue = {}".format(text))
+        #
+        #     elif readstatus == 3:  # Awaiting computer type for fail event
+        #         try:
+        #             comptype = str(text)
+        #             if comptype.upper() == "PROPOSER":
+        #                 readstatus = 4
+        #             elif comptype.upper() == "ACCEPTOR":
+        #                 readstatus = 5
+        #             # elif comptype.upper() == "LEARNER":
+        #             #   readstatus = 6
+        #         except:
+        #             raise Exception("Error converting fail event computertype. Computertype = {}".format(text))
+        #
+        #     elif readstatus == 4:  # Awaiting proposer ID.
+        #         try:
+        #             proposerfailid = str(text)
+        #             e[1].append("{}{}".format("P",proposerfailid))
+        #             eventdict[tick] = e
+        #             readstatus = 11
+        #         except:
+        #             raise Exception("Error converting event proposerfailid. Proposerfailid = {}".format(text))
+        #
+        #     elif readstatus == 5:  # Awaiting proposer ID.
+        #         try:
+        #             acceptorfailid = str(text)
+        #             e[1].append("{}{}".format("A",acceptorfailid))
+        #             eventdict[tick] = e
+        #             readstatus = 11
+        #         except:
+        #             raise Exception("Error converting event acceptorfailid. Acceptorfailid = {}".format(text))
+        #
+        #     # 6 reserved for learner.
+        #
+        #     elif readstatus == 7:
+        #         try:
+        #             comptype = str(text)
+        #             if comptype.upper() == "PROPOSER":
+        #                 readstatus = 8
+        #             elif comptype.upper() == "ACCEPTOR":
+        #                 readstatus = 9
+        #             # elif comptype.upper() == "LEARNER":
+        #             #   readstatus = 10
+        #         except:
+        #             raise Exception("Error converting recover event computertype. Computertype = {}".format(text))
+        #
+        #     elif readstatus == 8:  # Awaiting proposer ID.
+        #         try:
+        #             proposerrepid = str(text)
+        #             e[2].append("{}{}".format("P",proposerrepid))
+        #             eventdict[tick] = e
+        #             readstatus = 11
+        #         except:
+        #             raise Exception("Error converting event proposerrepid. Proposerrepid = {}".format(text))
+        #
+        #     elif readstatus == 9:  # Awaiting acceptor ID.
+        #         try:
+        #             acceptorrepid = str(text)
+        #             e[2].append("{}{}".format("A",acceptorrepid))
+        #             eventdict[tick] = e
+        #             readstatus = 11
+        #         except:
+        #             raise Exception("Error converting event acceptorrepid. Acceptorrepid = {}".format(text))
+        #
+        #     # 10 reserved for learner.
+        #
+        #     elif readstatus == 11:  # Already processed a full event this rule.
+        #         continue
 
     # Done parsing. Convert events to a list, do the same for the sim params.
     eventlist = []

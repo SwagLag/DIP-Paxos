@@ -1,5 +1,5 @@
 from functions import get_event, paddedstrnum, computerparser, idtostrid, priorvalueparser, simparser
-from computer import Proposer, Acceptor
+from computer import Proposer, Acceptor, Learner
 from messages import Message
 from network import Network
 
@@ -13,14 +13,17 @@ def main(simfile:str):
 def simulation(n_P: int, n_A: int, n_L: int, maxticks: int, E: list):
     # Initialise variables.
     # Proposals wordt bijgehouden in het Network object, waar alle proposers dan bij kunnen
-    P = [Proposer(x+1,n_A) for x in range(n_P)]
+    P = [Proposer(x+1,n_A,n_L) for x in range(n_P)]
     A = [Acceptor(y+1) for y in range(n_A)]
-    N = Network(P,A)
+    L = [Learner(z+1) for z in range(n_L)]
+    N = Network(P,A,L)
     # We sluiten het netwerk achteraf aan zodat we de proposers en acceptors in het netwerk kunnen stoppen ter referentie.
     for prop in P:
         prop.network = N
     for acc in A:
         acc.network = N
+    for lrn in L:
+        lrn.network = N
     paddingnum = max([999,maxticks])
     # Begin simulation.
     for tick in range(maxticks):
@@ -58,6 +61,10 @@ def simulation(n_P: int, n_A: int, n_L: int, maxticks: int, E: list):
                     print("{}: {} -> {}  {} n={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.src.proposalid))
                 elif m.type == "REJECTED":  # m.dst is P, m.src is A
                     print("{}: {} -> {}  {} n={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.dst.proposalid))
+                elif m.type == "SUCCESS":  # m.dst is L, m.src is P
+                    print("{}: {} -> {}  {} v={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.value))
+                elif m.type == "PREDICTED":
+                    print("{}: {} -> {}  {} n={}".format(paddedstrnum(tick,paddingnum),idtostrid(m.src),idtostrid(m.dst),m.type,m.value))
                 m.dst.process_message(m)
             else:  # Er wordt niks gedaan op het moment.
                 print("{}:".format(paddedstrnum(tick, paddingnum)))

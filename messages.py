@@ -5,7 +5,7 @@ class Message():
     def __init__(self,source,destination,typestr: str,value: Any):
         self.src = source  # Computer die het bericht verstuurd heeft.
         self.dst = destination  # Computer waarnaar het bericht verstuurd moet worden.
-        if typestr.upper() in ["PROPOSE","PREPARE","PROMISE","ACCEPT","ACCEPTED","REJECTED"]:
+        if typestr.upper() in ["PROPOSE","PREPARE","PROMISE","ACCEPT","ACCEPTED","SUCCESS","PREDICTED","REJECTED"]:
             self.type = typestr.upper()
         else:
             raise NotImplementedError

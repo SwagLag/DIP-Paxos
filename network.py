@@ -6,9 +6,10 @@ from messages import Message
 class Network():
     """Network class. Handles the transfer of all messages between computers like a queue;
     first in first out, last in last out."""
-    def __init__(self,proposers,acceptors,proposals=0):
+    def __init__(self,proposers,acceptors,learners,proposals=0):
         self.proposers = proposers
         self.acceptors = acceptors
+        self.learners = learners
         self.proposals = proposals
         self.messagequeue = []
 
@@ -20,6 +21,9 @@ class Network():
 
     def find_acceptor(self,index):
         return self.acceptors[index]
+
+    def find_learner(self,index):
+        return self.learners[index]
 
     def queue_message(self,m):
         self.messagequeue.append(m)
