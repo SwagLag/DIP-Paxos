@@ -45,6 +45,10 @@ class Proposer(BaseComputer):
         self.promised = 0  # Acceptors that promised to the proposer
         self.accepted = 0  # Acceptors that accepted the proposer
 
+        self.historyproposed = []  # Contains previous initially proposed values.
+        self.historyaccepted = []  # Contains previous accepted values.
+        self.historyreached = []  # Contains information on whether consensus was reached.
+
         self.state = 0
         # STATES:
         # 0: Idle
@@ -66,7 +70,8 @@ class Proposer(BaseComputer):
 
     def process_message(self,m):
         if self.state in [1,2]:  # Alleen als het nodig is tellen we berichten om te kijken of we een consensus bereiken.
-            self.processed += 1
+            self.processed += 1  # Anders gebeuren er 'grappige' dingen; bijv. de proposer gaat dan in bepaalde intervals
+                                 # meteen al kijken of ie consensus heeft (en faalt dus direct)
         if self.state == 1:  # Prepare stage
             if m.type == "PROMISE":
                 self.promised += 1
@@ -109,6 +114,10 @@ class Proposer(BaseComputer):
                         self.consensus = True
                         for i in range(self.learners):
                             self.network.queue_message(Message(self, self.network.find_learner(i), "SUCCESS", self.value))
+                        # Proposer is dan klaar; schrijf log gegevens in.
+                        self.historyproposed.append(self.proposed)
+                        self.historyaccepted.append(self.value)
+                        self.historyreached.append(self.consensus)
                     else:
                         self.state = 1
                         self.increment_proposal()
@@ -123,6 +132,10 @@ class Proposer(BaseComputer):
                         self.consensus = True
                         for i in range(self.learners):
                             self.network.queue_message(Message(self, self.network.find_learner(i), "SUCCESS", self.value))
+                        # Proposer is dan klaar; schrijf log gegevens in.
+                        self.historyproposed.append(self.proposed)
+                        self.historyaccepted.append(self.value)
+                        self.historyreached.append(self.consensus)
                     else:
                         self.state = 1
                         self.increment_proposal()
@@ -131,7 +144,14 @@ class Proposer(BaseComputer):
                     self.processed, self.accepted = 0, 0
 
     def handle_external_message(self,m):
+        # Logging
+        if self.proposed is not None and self.value is not None and self.consensus is False:
+            self.historyproposed.append(self.proposed)
+            self.historyaccepted.append(self.value)
+            self.historyreached.append(self.consensus)
+        # End of logging.
         self.state = 1
+        self.consensus = False
         self.increment_proposal()
         # Bericht zou altijd een PROPOSAL bericht moeten zijn.
         # Source is ook altijd None.

@@ -72,8 +72,10 @@ def simulation(n_P: int, n_A: int, n_L: int, maxticks: int, E: list):
     # Simulatie klaar, consensus evalueren per proposer.
     print("\n")
     for proposer in P:
-        if proposer.consensus is True:
-            print("{} heeft wel consensus (voorgesteld: {}, geaccepteerd: {})".format(idtostrid(proposer),proposer.proposed,proposer.value))
+        print("Proposer {} proposed the following:\n".format(proposer.id))
+        for i in range(len(proposer.historyproposed)):
+            print("Proposed: {}, Accepted: {}, Consensus reached: {}".format(proposer.historyproposed[i],proposer.historyaccepted[i],proposer.historyreached[i]))
+        print("")
 
 if __name__ == "__main__":
     parser = simparser("test-3")
